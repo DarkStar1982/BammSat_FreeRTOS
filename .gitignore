@@ -1,0 +1,8 @@
+Debug/
+doc/
+.settings/
+.DS_Store
+.cproject
+.project
+*.mex
+*.launch
