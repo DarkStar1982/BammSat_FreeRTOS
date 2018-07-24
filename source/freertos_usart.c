@@ -109,7 +109,7 @@ typedef struct {
 	uint8_t subsystem_id;
 	uint8_t type;
 	uint8_t priority;
-	uint8_t checksum;//or timestamp
+	uint8_t reserved;//checksum or timestamp
 	union {
 		float voltages[4]; //EPS
 		float aocs_vector[4]; // ADC
@@ -117,7 +117,8 @@ typedef struct {
 	};
 } data_packet;
 
-QueueHandle_t data_queue;
+QueueHandle_t data_queue; //common queue - receiving commands from subsystems
+QueueHandle_t comms_queue; //queue for packets sent to communication subsystem
 
 /*!
  * @brief Application entry point.
@@ -134,8 +135,11 @@ int main(void)
     BOARD_InitDebugConsole();
     RESET_PeripheralReset(kFC4_RST_SHIFT_RSTn);
 
-    /* create queue reader task */
-     data_queue = xQueueCreate(32, sizeof(recv_buffer));
+    /* create inbound queue */
+    data_queue = xQueueCreate(32, sizeof(recv_buffer));
+
+    /* create outbound queues */
+    comms_queue = xQueueCreate(32, sizeof(recv_buffer));
 
     /* create UART tasks */
     if (xTaskCreate(uart_task, "Uart_task", configMINIMAL_STACK_SIZE + 100, NULL, uart_task_PRIORITY, NULL) != pdPASS)
@@ -149,15 +153,17 @@ int main(void)
         PRINTF("USART 2 Task creation failed!.\r\n");
         while (1)
             ;
-     }
+    }
 
+    //create queue reader task
     if (xTaskCreate(vReceiverTask, "QueueReader", configMINIMAL_STACK_SIZE + 100, NULL, uart_task_PRIORITY, NULL) != pdPASS)
     {
         PRINTF("Queue Reader Task creation failed!.\r\n");
         while (1)
                ;
-     }
+    }
 
+    //create master state machine
     if (xTaskCreate(vMasterLoop, "MasterLoop", configMINIMAL_STACK_SIZE + 100, NULL, uart_task_PRIORITY, NULL) != pdPASS)
     {
     	PRINTF("Master Loop Task creation failed!.\r\n");
@@ -214,7 +220,9 @@ int main(void)
 static void vMasterLoop(void *pvParameters)
 {
 	uint8_t mode=1;
+	data_packet comms_packet;
 	float voltage_threshold = 5.0;
+	BaseType_t xStatus;
 	//uint8_t next_mode;
 	const TickType_t xDelay1000ms = pdMS_TO_TICKS( 10000 );
 	init_bammsat_state();
@@ -230,6 +238,17 @@ static void vMasterLoop(void *pvParameters)
 				{
 					PRINTF("Transition into the nominal mode!\r\n");
 					//send telemetry packet?
+					comms_packet.subsystem_id = OBC;
+					comms_packet.type = 1;
+					comms_packet.priority = PRIORITY_LOW;
+					comms_packet.reserved = 0;
+					strncpy(comms_packet.data, "OBC mode nominal", 16);
+
+					xStatus = xQueueSendToBack( comms_queue, &comms_packet, 0 );
+					if (xStatus != pdPASS )
+					{
+					   PRINTF( "Could not send to the comms queue.\r\n" );
+					}
 					mode = NOMINAL_MODE;
 				}
 				//decide if I want to go into next mode or not
@@ -349,6 +368,8 @@ static void uart_task2(void *pvParameters)
     int error;
     size_t n;
     BaseType_t xStatus;
+	data_packet comms_packet;
+
     usart_config2.srcclk = CLOCK_GetFreq(kCLOCK_Flexcomm4);
     usart_config2.base = DEMO_USART2;
 
@@ -383,10 +404,22 @@ static void uart_task2(void *pvParameters)
         	/* The send operation could not complete because the queue was full - this must be an error as the queue should never contain more than one item! */
         		PRINTF( "Could not send to the queue.\r\n" );
         	}
-
-            /* send back the received data */
-        	USART_RTOS_Send(&handle2, (uint8_t *)to_send2, strlen(to_send2));
         }
+        //now send the outstanding data
+        xStatus = xQueueReceive( comms_queue, &comms_packet, 0 );
+        if( xStatus == pdPASS )
+        {
+        	/* Data was successfully received from the queue, print out the received values */
+        	USART_RTOS_Send(&handle2, (uint8_t *) &comms_packet,20);
+        }
+        else
+        {
+        		/* Data was not received from the queue even after waiting for 100ms.
+        		* This must be an error as the sending tasks are free running and will be
+        		* continuously writing to the queue. */
+        		//PRINTF( "Could not receive from the comms queue.\r\n" );
+        }
+
     } while (kStatus_Success == error);
 
     USART_RTOS_Deinit(&handle2);
