@@ -44,6 +44,8 @@ BOARD_InitPins:
     glitch_filter: disabled, slew_rate: standard, open_drain: disabled}
   - {pin_num: K5, peripheral: FLEXCOMM4, signal: RXD_SDA_MOSI, pin_signal: PIO3_26/SCT0_OUT0/FC4_RXD_SDA_MOSI/EMC_A(15)}
   - {pin_num: P14, peripheral: FLEXCOMM4, signal: TXD_SCL_MISO, pin_signal: PIO3_27/SCT0_OUT1/FC4_TXD_SCL_MISO/EMC_A(16)}
+  - {pin_num: D1, peripheral: FLEXCOMM8, signal: TXD_SCL_MISO, pin_signal: PIO1_18/FC8_TXD_SCL_MISO/SCT0_OUT5/CAN1_RD/EMC_BLSN(1)}
+  - {pin_num: N12, peripheral: FLEXCOMM8, signal: RXD_SDA_MOSI, pin_signal: PIO1_17/ENET_MDIO/FC8_RXD_SDA_MOSI/SCT0_OUT4/CAN1_TD/EMC_BLSN(0)}
  * BE CAREFUL MODIFYING THIS COMMENT - IT IS YAML SETTINGS FOR TOOLS ***********
  */
 /* clang-format on */
@@ -93,6 +95,30 @@ void BOARD_InitPins(void)
                                          IOCON_PIO_OPENDRAIN_DI);
     /* PORT0 PIN30 (coords: A2) is configured as FC0_TXD_SCL_MISO */
     IOCON_PinMuxSet(IOCON, 0U, 30U, port0_pin30_config);
+
+    IOCON->PIO[1][17] = ((IOCON->PIO[1][17] &
+                          /* Mask bits to zero which are setting */
+                          (~(IOCON_PIO_FUNC_MASK | IOCON_PIO_DIGIMODE_MASK)))
+
+                         /* Selects pin function.
+                          * : PORT117 (pin N12) is configured as FC8_RXD_SDA_MOSI. */
+                         | IOCON_PIO_FUNC(PIO117_FUNC_ALT2)
+
+                         /* Select Analog/Digital mode.
+                          * : Digital mode. */
+                         | IOCON_PIO_DIGIMODE(PIO117_DIGIMODE_DIGITAL));
+
+    IOCON->PIO[1][18] = ((IOCON->PIO[1][18] &
+                          /* Mask bits to zero which are setting */
+                          (~(IOCON_PIO_FUNC_MASK | IOCON_PIO_DIGIMODE_MASK)))
+
+                         /* Selects pin function.
+                          * : PORT118 (pin D1) is configured as FC8_TXD_SCL_MISO. */
+                         | IOCON_PIO_FUNC(PIO118_FUNC_ALT2)
+
+                         /* Select Analog/Digital mode.
+                          * : Digital mode. */
+                         | IOCON_PIO_DIGIMODE(PIO118_DIGIMODE_DIGITAL));
 
     IOCON->PIO[3][26] = ((IOCON->PIO[3][26] &
                           /* Mask bits to zero which are setting */

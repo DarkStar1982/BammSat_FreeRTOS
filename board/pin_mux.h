@@ -32,6 +32,10 @@ void BOARD_InitBootPins(void);
 #define IOCON_PIO_MODE_INACT 0x00u    /*!<@brief No addition pin function */
 #define IOCON_PIO_OPENDRAIN_DI 0x00u  /*!<@brief Open drain is disabled */
 #define IOCON_PIO_SLEW_STANDARD 0x00u /*!<@brief Standard mode, output slew rate control is enabled */
+#define PIO117_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO117_FUNC_ALT2 0x02u        /*!<@brief Selects pin function.: Alternative connection 2. */
+#define PIO118_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO118_FUNC_ALT2 0x02u        /*!<@brief Selects pin function.: Alternative connection 2. */
 #define PIO326_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
 #define PIO326_FUNC_ALT3 0x03u        /*!<@brief Selects pin function.: Alternative connection 3. */
 #define PIO327_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
