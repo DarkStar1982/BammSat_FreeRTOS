@@ -32,10 +32,88 @@ void BOARD_InitBootPins(void);
 #define IOCON_PIO_MODE_INACT 0x00u    /*!<@brief No addition pin function */
 #define IOCON_PIO_OPENDRAIN_DI 0x00u  /*!<@brief Open drain is disabled */
 #define IOCON_PIO_SLEW_STANDARD 0x00u /*!<@brief Standard mode, output slew rate control is enabled */
+#define PIO015_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO015_FUNC_ALT6 0x06u        /*!<@brief Selects pin function.: Alternative connection 6. */
+#define PIO018_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO018_FUNC_ALT6 0x06u        /*!<@brief Selects pin function.: Alternative connection 6. */
+#define PIO019_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO019_FUNC_ALT6 0x06u        /*!<@brief Selects pin function.: Alternative connection 6. */
+#define PIO020_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO020_FUNC_ALT6 0x06u        /*!<@brief Selects pin function.: Alternative connection 6. */
+#define PIO021_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO021_FUNC_ALT6 0x06u        /*!<@brief Selects pin function.: Alternative connection 6. */
+#define PIO02_DIGIMODE_DIGITAL 0x01u  /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO02_FUNC_ALT6 0x06u         /*!<@brief Selects pin function.: Alternative connection 6. */
+#define PIO03_DIGIMODE_DIGITAL 0x01u  /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO03_FUNC_ALT6 0x06u         /*!<@brief Selects pin function.: Alternative connection 6. */
+#define PIO04_DIGIMODE_DIGITAL 0x01u  /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO04_FUNC_ALT6 0x06u         /*!<@brief Selects pin function.: Alternative connection 6. */
+#define PIO05_DIGIMODE_DIGITAL 0x01u  /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO05_FUNC_ALT6 0x06u         /*!<@brief Selects pin function.: Alternative connection 6. */
+#define PIO06_DIGIMODE_DIGITAL 0x01u  /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO06_FUNC_ALT6 0x06u         /*!<@brief Selects pin function.: Alternative connection 6. */
+#define PIO07_DIGIMODE_DIGITAL 0x01u  /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO07_FUNC_ALT6 0x06u         /*!<@brief Selects pin function.: Alternative connection 6. */
+#define PIO08_DIGIMODE_DIGITAL 0x01u  /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO08_FUNC_ALT6 0x06u         /*!<@brief Selects pin function.: Alternative connection 6. */
+#define PIO09_DIGIMODE_DIGITAL 0x01u  /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO09_FUNC_ALT6 0x06u         /*!<@brief Selects pin function.: Alternative connection 6. */
+#define PIO110_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO110_FUNC_ALT6 0x06u        /*!<@brief Selects pin function.: Alternative connection 6. */
+#define PIO111_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO111_FUNC_ALT6 0x06u        /*!<@brief Selects pin function.: Alternative connection 6. */
+#define PIO112_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO112_FUNC_ALT6 0x06u        /*!<@brief Selects pin function.: Alternative connection 6. */
+#define PIO113_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO113_FUNC_ALT6 0x06u        /*!<@brief Selects pin function.: Alternative connection 6. */
+#define PIO114_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO114_FUNC_ALT6 0x06u        /*!<@brief Selects pin function.: Alternative connection 6. */
+#define PIO115_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO115_FUNC_ALT6 0x06u        /*!<@brief Selects pin function.: Alternative connection 6. */
+#define PIO116_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO116_FUNC_ALT6 0x06u        /*!<@brief Selects pin function.: Alternative connection 6. */
 #define PIO117_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
 #define PIO117_FUNC_ALT2 0x02u        /*!<@brief Selects pin function.: Alternative connection 2. */
 #define PIO118_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
 #define PIO118_FUNC_ALT2 0x02u        /*!<@brief Selects pin function.: Alternative connection 2. */
+#define PIO119_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO119_FUNC_ALT6 0x06u        /*!<@brief Selects pin function.: Alternative connection 6. */
+#define PIO120_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO120_FUNC_ALT6 0x06u        /*!<@brief Selects pin function.: Alternative connection 6. */
+#define PIO121_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO121_FUNC_ALT6 0x06u        /*!<@brief Selects pin function.: Alternative connection 6. */
+#define PIO123_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO123_FUNC_ALT6 0x06u        /*!<@brief Selects pin function.: Alternative connection 6. */
+#define PIO124_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO124_FUNC_ALT6 0x06u        /*!<@brief Selects pin function.: Alternative connection 6. */
+#define PIO125_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO125_FUNC_ALT6 0x06u        /*!<@brief Selects pin function.: Alternative connection 6. */
+#define PIO126_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO126_FUNC_ALT6 0x06u        /*!<@brief Selects pin function.: Alternative connection 6. */
+#define PIO127_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO127_FUNC_ALT6 0x06u        /*!<@brief Selects pin function.: Alternative connection 6. */
+#define PIO128_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO128_FUNC_ALT6 0x06u        /*!<@brief Selects pin function.: Alternative connection 6. */
+#define PIO129_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO129_FUNC_ALT6 0x06u        /*!<@brief Selects pin function.: Alternative connection 6. */
+#define PIO130_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO130_FUNC_ALT6 0x06u        /*!<@brief Selects pin function.: Alternative connection 6. */
+#define PIO131_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO131_FUNC_ALT6 0x06u        /*!<@brief Selects pin function.: Alternative connection 6. */
+#define PIO14_DIGIMODE_DIGITAL 0x01u  /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO14_FUNC_ALT6 0x06u         /*!<@brief Selects pin function.: Alternative connection 6. */
+#define PIO15_DIGIMODE_DIGITAL 0x01u  /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO15_FUNC_ALT6 0x06u         /*!<@brief Selects pin function.: Alternative connection 6. */
+#define PIO16_DIGIMODE_DIGITAL 0x01u  /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO16_FUNC_ALT6 0x06u         /*!<@brief Selects pin function.: Alternative connection 6. */
+#define PIO17_DIGIMODE_DIGITAL 0x01u  /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO17_FUNC_ALT6 0x06u         /*!<@brief Selects pin function.: Alternative connection 6. */
+#define PIO18_DIGIMODE_DIGITAL 0x01u  /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO18_FUNC_ALT6 0x06u         /*!<@brief Selects pin function.: Alternative connection 6. */
+#define PIO19_DIGIMODE_DIGITAL 0x01u  /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO19_FUNC_ALT6 0x06u         /*!<@brief Selects pin function.: Alternative connection 6. */
+#define PIO325_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO325_FUNC_ALT6 0x06u        /*!<@brief Selects pin function.: Alternative connection 6. */
 #define PIO326_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
 #define PIO326_FUNC_ALT3 0x03u        /*!<@brief Selects pin function.: Alternative connection 3. */
 #define PIO327_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
@@ -46,6 +124,142 @@ void BOARD_InitBootPins(void);
 /* @} */
 
 /*! @name FC0_TXD_SCL_MISO (coord A2), U24[12]/P0_30-ISP_FC0_TXD
+  @{ */
+/* @} */
+
+/*! @name EMC_A(0) (coord C14), U28[H7]/P0_18-EMC_A0
+  @{ */
+/* @} */
+
+/*! @name EMC_A(1) (coord C6), U28[H8]/P0_19-EMC_A1
+  @{ */
+/* @} */
+
+/*! @name EMC_A(2) (coord D13), U28[J8]/P0_20-EMC_A2
+  @{ */
+/* @} */
+
+/*! @name EMC_A(3) (coord C13), U28[J7]/P0_21-EMC_A3
+  @{ */
+/* @} */
+
+/*! @name EMC_A(4) (coord E4), U28[J3]/P1_5-EMC_A4
+  @{ */
+/* @} */
+
+/*! @name EMC_A(5) (coord G4), U28[J2]/P1_6-EMC_A5
+  @{ */
+/* @} */
+
+/*! @name EMC_A(6) (coord N1), U28[H3]/P1_7-EMC_A6
+  @{ */
+/* @} */
+
+/*! @name EMC_A(7) (coord P8), U28[H2]/P1_8-EMC_A7
+  @{ */
+/* @} */
+
+/*! @name EMC_A(8) (coord J10), U28[H1]/P1_26-EMC_A8
+  @{ */
+/* @} */
+
+/*! @name EMC_A(9) (coord F10), U28[G3]/P1_27-EMC_A9
+  @{ */
+/* @} */
+
+/*! @name EMC_A(10) (coord B7), U28[H9]/P1_16-EMC_A10
+  @{ */
+/* @} */
+
+/*! @name EMC_A(11) (coord M10), U28[G2]/P1_23-EMC_A11
+  @{ */
+/* @} */
+
+/*! @name EMC_A(14) (coord P9), U28[G8]/P3_25-EMC_A14
+  @{ */
+/* @} */
+
+/*! @name EMC_A(13) (coord M12), U28[G7]/P1_25-EMC_A13
+  @{ */
+/* @} */
+
+/*! @name EMC_A(12) (coord N14), U28[G1]/P1_24-EMC_A12
+  @{ */
+/* @} */
+
+/*! @name EMC_CASN (coord K6), U28[F7]/P1_9-EMC_CASn
+  @{ */
+/* @} */
+
+/*! @name EMC_CKE(0) (coord A11), U28[F3]/P1_15-EMC_CKE0
+  @{ */
+/* @} */
+
+/*! @name EMC_CLK(0) (coord B4), U28[F2]/P1_11-EMC_CLK0
+  @{ */
+/* @} */
+
+/*! @name EMC_D(5) (coord H12), U28[D9]/RP5[3]/P0_7-EMC_D5
+  @{ */
+/* @} */
+
+/*! @name EMC_D(6) (coord H10), U28[D8]/RP5[2]/P0_8-EMC_D6
+  @{ */
+/* @} */
+
+/*! @name EMC_D(8) (coord L1), U28[E1]/RP4[4]/P1_19-EMC_D8
+  @{ */
+/* @} */
+
+/*! @name EMC_D(7) (coord G12), U28[E9]/RP5[1]/P0_9-EMC_D7
+  @{ */
+/* @} */
+
+/*! @name EMC_D(9) (coord M1), U28[D2]/RP4[3]/P1_20-EMC_D9
+  @{ */
+/* @} */
+
+/*! @name EMC_D(10) (coord N8), U28[D1]/RP4[2]/P1_21-EMC_D10
+  @{ */
+/* @} */
+
+/*! @name EMC_D(11) (coord D4), U28[C2]/RP4[1]/P1_4-EMC_D11
+  @{ */
+/* @} */
+
+/*! @name EMC_D(12) (coord E12), U28[C1]/RP2[4]/P1_28-EMC_D12
+  @{ */
+/* @} */
+
+/*! @name EMC_D(13) (coord C11), U28[B2]/RP2[3]/P1_29-EMC_D13
+  @{ */
+/* @} */
+
+/*! @name EMC_D(14) (coord A8), U28[B1]/RP2[2]/P1_30-EMC_D14
+  @{ */
+/* @} */
+
+/*! @name EMC_D(15) (coord C5), U28[A2]/RP2[1]/P1_31-EMC_D15
+  @{ */
+/* @} */
+
+/*! @name EMC_DQM(0) (coord G10), U28[E8]/P1_13-EMC_DQM0
+  @{ */
+/* @} */
+
+/*! @name EMC_DQM(1) (coord C12), U28[F1]/P1_14-EMC_DQM1
+  @{ */
+/* @} */
+
+/*! @name EMC_DYCSN(0) (coord K9), U28[G9]/P1_12-EMC_DYCSn0
+  @{ */
+/* @} */
+
+/*! @name EMC_RASN (coord N9), U28[F8]/P1_10-EMC_RASn
+  @{ */
+/* @} */
+
+/*! @name EMC_WEN (coord L4), U28[F9]/P0_15-EMC_WEn
   @{ */
 /* @} */
 

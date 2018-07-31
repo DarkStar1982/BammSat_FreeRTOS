@@ -1,3 +1,42 @@
+/*
+ * The Clear BSD License
+ * Copyright (c) 2016, Freescale Semiconductor, Inc.
+ * Copyright 2016-2017 NXP
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without modification,
+ * are permitted (subject to the limitations in the disclaimer below) provided
+ *  that the following conditions are met:
+ *
+ * o Redistributions of source code must retain the above copyright notice, this list
+ *   of conditions and the following disclaimer.
+ *
+ * o Redistributions in binary form must reproduce the above copyright notice, this
+ *   list of conditions and the following disclaimer in the documentation and/or
+ *   other materials provided with the distribution.
+ *
+ * o Neither the name of the copyright holder nor the names of its
+ *   contributors may be used to endorse or promote products derived from this
+ *   software without specific prior written permission.
+ *
+ * NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE GRANTED BY THIS LICENSE.
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+// Features left to verify
+// TODO: SDRAM R/W operations
+// TODO: SD Card functionality
+// TODO: real-time-clock/watch dog timer
+// TODO: self-reflash from SD Card data
+// TODO: power management functionality
 
 /* FreeRTOS kernel includes. */
 #include "FreeRTOS.h"
@@ -8,6 +47,7 @@
 /* Freescale includes. */
 #include "fsl_device_registers.h"
 #include "fsl_debug_console.h"
+#include "fsl_emc.h"
 #include "fsl_flexcomm.h"
 #include "board.h"
 
@@ -30,6 +70,12 @@
 #define DEMO_USART_IRQn FLEXCOMM0_IRQn
 #define DEMO_USART_IRQn2 FLEXCOMM4_IRQn
 #define DEMO_USART_IRQn3 FLEXCOMM8_IRQn
+
+/* SDRAM values */
+#define SDRAM_BASE_ADDR 0xa0000000
+#define SDRAM_SIZE_BYTES (8 * 1024 * 1024)
+#define SDRAM_EXAMPLE_DATALEN (SDRAM_SIZE_BYTES / 4)
+#define SDRAM_TEST_PATTERN (2)
 
 /* Task priorities. */
 #define uart_task_PRIORITY (configMAX_PRIORITIES - 1)
@@ -73,7 +119,7 @@ struct {
 /*******************************************************************************
  * Task Prototypes
  ******************************************************************************/
-static void uart_task(void *pvParameters);
+static void uart_task1(void *pvParameters);
 static void uart_task2(void *pvParameters);
 static void uart_task3(void *pvParameters);
 
@@ -84,12 +130,11 @@ static void vMasterLoop(void *pvParameters);
  ******************************************************************************/
 const char *to_send1 = "Replying on USART:FLEXCOMM0\r\n";
 const char *to_send2 = "Replying on USART:FLEXCOMM4\r\n";
-const char *to_send3 = "Replying on USART:FLEXCOMM8"
-		"\r\n";
+const char *to_send3 = "Replying on USART:FLEXCOMM8\r\n";
 
 const char *send_buffer_overrun = "\r\nRing buffer overrun!\r\n";
-uint8_t background_buffer[40];
-uint8_t recv_buffer[20];
+uint8_t background_buffer1[40];
+uint8_t recv_buffer1[20];
 
 uint8_t background_buffer2[40];
 uint8_t recv_buffer2[20];
@@ -97,8 +142,8 @@ uint8_t recv_buffer2[20];
 uint8_t background_buffer3[40];
 uint8_t recv_buffer3[20];
 
-usart_rtos_handle_t handle;
-struct _usart_handle t_handle;
+usart_rtos_handle_t handle1;
+struct _usart_handle t_handle1;
 
 usart_rtos_handle_t handle2;
 struct _usart_handle t_handle2;
@@ -106,12 +151,12 @@ struct _usart_handle t_handle2;
 usart_rtos_handle_t handle3;
 struct _usart_handle t_handle3;
 
-struct rtos_usart_config usart_config = {
+struct rtos_usart_config usart_config1 = {
     .baudrate = 115200,
     .parity = kUSART_ParityDisabled,
     .stopbits = kUSART_OneStopBit,
-    .buffer = background_buffer,
-    .buffer_size = sizeof(background_buffer),
+    .buffer = background_buffer1,
+    .buffer_size = sizeof(background_buffer1),
 };
 
 struct rtos_usart_config usart_config2 = {
@@ -144,51 +189,159 @@ typedef struct {
 QueueHandle_t data_queue; //common queue - receiving commands from subsystems
 QueueHandle_t comms_queue; //queue for packets sent to communication subsystem
 
+status_t SDRAM_DataBusCheck(volatile uint32_t *address)
+{
+    uint32_t data = 0;
+
+    /* Write the walking 1's data test. */
+    for (data = 1; data != 0; data <<= 1)
+    {
+        *address = data;
+
+        /* Read the data out of the address and check. */
+        if (*address != data)
+        {
+            return kStatus_Fail;
+        }
+    }
+    return kStatus_Success;
+}
+
+status_t SDRAM_AddressBusCheck(volatile uint32_t *address, uint32_t bytes)
+{
+    uint32_t pattern = 0x55555555;
+    uint32_t size = bytes / 4;
+    uint32_t offset;
+    uint32_t checkOffset;
+
+    /* write the pattern to the power-of-two address. */
+    for (offset = 1; offset < size; offset <<= 1)
+    {
+        address[offset] = pattern;
+    }
+    address[0] = ~pattern;
+
+    /* Read and check. */
+    for (offset = 1; offset < size; offset <<= 1)
+    {
+        if (address[offset] != pattern)
+        {
+            return kStatus_Fail;
+        }
+    }
+
+    if (address[0] != ~pattern)
+    {
+        return kStatus_Fail;
+    }
+
+    /* Change the data to the revert one address each time
+     * and check there is no effect to other address. */
+    for (offset = 1; offset < size; offset <<= 1)
+    {
+        address[offset] = ~pattern;
+        for (checkOffset = 1; checkOffset < size; checkOffset <<= 1)
+        {
+            if ((checkOffset != offset) && (address[checkOffset] != pattern))
+            {
+                return kStatus_Fail;
+            }
+        }
+        address[offset] = pattern;
+    }
+    return kStatus_Success;
+}
+
+void sdram_check()
+{
+	uint32_t index;
+	uint32_t *sdram = (uint32_t *)SDRAM_BASE_ADDR; /* SDRAM start address. */
+	//check hardware status
+	if (SDRAM_DataBusCheck(sdram) != kStatus_Success)
+	{
+		PRINTF("\r\n SDRAM data bus check is failure.\r\n");
+	}
+	if (SDRAM_AddressBusCheck(sdram, SDRAM_SIZE_BYTES) != kStatus_Success)
+	{
+		PRINTF("\r\n SDRAM address bus check is failure.\r\n");
+	}
+	//check functionality
+	PRINTF("\r\n Start EMC SDRAM access example.\r\n");
+	PRINTF("\r\n SDRAM Write Start, Start Address 0x%x, Data Length %d !\r\n", sdram, SDRAM_EXAMPLE_DATALEN);
+	/* Prepare data and write to SDRAM. */
+	for (index = 0; index < SDRAM_EXAMPLE_DATALEN; index++)
+	{
+		*(uint32_t *)(sdram + index) = index;
+	}
+	PRINTF("\r\n SDRAM Write finished!\r\n");
+	PRINTF("\r\n SDRAM Read/Check Start, Start Address 0x%x, Data Length %d !\r\n", sdram, SDRAM_EXAMPLE_DATALEN);
+	/* Read data from the SDRAM. */
+	for (index = 0; index < SDRAM_EXAMPLE_DATALEN; index++)
+	{
+		if (*(uint32_t *)(sdram + index) != index)
+		{
+			PRINTF("\r\n SDRAM Write Data and Read Data Check Error!\r\n");
+			break;
+		}
+	}
+	PRINTF("\r\n SDRAM Write Data and Read Data Succeed.\r\n");
+	EMC_Deinit(EMC);
+	PRINTF("\r\n SDRAM Example End.\r\n");
+}
+
+/* Init board hardware:
+ * 	attach 12 MHz clock to FLEXCOMM0 (debug console)
+ *	attach 12 MHz clock to FLEXCOMM4 (UART4)
+ *	attach 12 MHz clock to FLEXCOMM8 (UART8)
+ *  check SDRAM memory
+ *  reset the FLEXCOMM interfaces
+ */
+void init_hardware()
+{
+	CLOCK_AttachClk(BOARD_DEBUG_UART_CLK_ATTACH);
+	CLOCK_AttachClk(kFRO12M_to_FLEXCOMM4);
+	CLOCK_AttachClk(kFRO12M_to_FLEXCOMM8);
+	BOARD_InitPins();
+	BOARD_BootClockFROHF96M();
+	BOARD_InitDebugConsole();
+	BOARD_InitSDRAM();
+	RESET_PeripheralReset(kFC4_RST_SHIFT_RSTn);
+	RESET_PeripheralReset(kFC8_RST_SHIFT_RSTn);
+}
+
 /*!
  * @brief Application entry point.
  */
 int main(void)
 {
-	/* Init board hardware. */
+	init_hardware();
+	sdram_check();
 
-    // attach 12 MHz clock to FLEXCOMM0 (debug console)
-    CLOCK_AttachClk(BOARD_DEBUG_UART_CLK_ATTACH);
-    // attach 12 MHz clock to UART4
-    CLOCK_AttachClk(kFRO12M_to_FLEXCOMM4);
-    // attach 12 MHz clock to UART8
-    CLOCK_AttachClk(kFRO12M_to_FLEXCOMM8);
-
-    BOARD_InitPins();
-    BOARD_InitDebugConsole();
-    RESET_PeripheralReset(kFC4_RST_SHIFT_RSTn);
-    RESET_PeripheralReset(kFC8_RST_SHIFT_RSTn);
-
-    /* create inbound queue */
-    data_queue = xQueueCreate(32, sizeof(recv_buffer));
-
-    /* create outbound queues */
-    comms_queue = xQueueCreate(32, sizeof(recv_buffer));
+	/* create inbound and outbound queues */
+    data_queue = xQueueCreate(32, sizeof(recv_buffer1));
+    comms_queue = xQueueCreate(32, sizeof(recv_buffer1));
 
     /* create UART tasks */
-    if (xTaskCreate(uart_task, "Uart_task", configMINIMAL_STACK_SIZE + 100, NULL, uart_task_PRIORITY, NULL) != pdPASS)
+    if (xTaskCreate(uart_task1, "Uart_task1", configMINIMAL_STACK_SIZE + 100, NULL, uart_task_PRIORITY, NULL) != pdPASS)
     {
-        PRINTF("USART 1 Task creation failed!.\r\n");
+        PRINTF("UART 1 Task creation failed!.\r\n");
         while (1)
             ;
     }
+
     if (xTaskCreate(uart_task2, "Uart_task2", configMINIMAL_STACK_SIZE + 100, NULL, uart_task_PRIORITY, NULL) != pdPASS)
     {
-        PRINTF("USART 2 Task creation failed!.\r\n");
+        PRINTF("UART 2 Task creation failed!.\r\n");
         while (1)
             ;
     }
 
     if (xTaskCreate(uart_task3, "Uart_task3", configMINIMAL_STACK_SIZE + 100, NULL, uart_task_PRIORITY, NULL) != pdPASS)
-       {
-           PRINTF("USART 3 Task creation failed!.\r\n");
-           while (1)
-               ;
-       }
+    {
+       PRINTF("UART 3 Task creation failed!.\r\n");
+       while (1)
+    	   ;
+    }
 
     //create queue reader task
     if (xTaskCreate(vReceiverTask, "QueueReader", configMINIMAL_STACK_SIZE + 100, NULL, uart_task_PRIORITY, NULL) != pdPASS)
@@ -306,6 +459,8 @@ void process_command_queue()
 			break;
 	}
 }
+
+/* FreeRTOS tasks */
 static void vMasterLoop(void *pvParameters)
 {
 	uint8_t mode=1;
@@ -397,20 +552,18 @@ static void vReceiverTask( void *pvParameters )
 }
 
 
-/*
- * @brief Task responsible for loopback.
- */
-static void uart_task(void *pvParameters)
+
+static void uart_task1(void *pvParameters)
 {
     int error;
     size_t n;
     BaseType_t xStatus;
-    usart_config.srcclk = BOARD_DEBUG_UART_CLK_FREQ;
-    usart_config.base = DEMO_USART;
+    usart_config1.srcclk = BOARD_DEBUG_UART_CLK_FREQ;
+    usart_config1.base = DEMO_USART;
 
     NVIC_SetPriority(DEMO_USART_IRQn, USART_NVIC_PRIO);
 
-    if (0 > USART_RTOS_Init(&handle, &t_handle, &usart_config))
+    if (0 > USART_RTOS_Init(&handle1, &t_handle1, &usart_config1))
     {
         vTaskSuspend(NULL);
     }
@@ -418,12 +571,12 @@ static void uart_task(void *pvParameters)
     /* Receive user input and send it back to terminal. */
     do
     {
-        error = USART_RTOS_Receive(&handle, recv_buffer, sizeof(recv_buffer), &n);
+        error = USART_RTOS_Receive(&handle1, recv_buffer1, sizeof(recv_buffer1), &n);
         if (error == kStatus_USART_RxRingBufferOverrun)
         {
             /* Notify about hardware buffer overrun */
             if (kStatus_Success !=
-                USART_RTOS_Send(&handle, (uint8_t *)send_buffer_overrun, strlen(send_buffer_overrun)))
+                USART_RTOS_Send(&handle1, (uint8_t *)send_buffer_overrun, strlen(send_buffer_overrun)))
             {
                 vTaskSuspend(NULL);
             }
@@ -431,7 +584,7 @@ static void uart_task(void *pvParameters)
         if (n > 0)
         {
             /* send back the received data */
-        	xStatus = xQueueSendToBack( data_queue, &recv_buffer, 0 );
+        	xStatus = xQueueSendToBack( data_queue, &recv_buffer1, 0 );
         	if (xStatus != pdPASS )
         	{
         		/* The send operation could not complete because the queue was full -
@@ -439,11 +592,11 @@ static void uart_task(void *pvParameters)
         	       PRINTF( "Could not send to the queue.\r\n" );
         	}
         	//read the outbound queue from here
-        	USART_RTOS_Send(&handle, (uint8_t *)to_send1, strlen(to_send1));
+        	USART_RTOS_Send(&handle1, (uint8_t *)to_send1, strlen(to_send1));
 
         }
     } while (kStatus_Success == error);
-    USART_RTOS_Deinit(&handle);
+    USART_RTOS_Deinit(&handle1);
     vTaskSuspend(NULL);
 }
 
