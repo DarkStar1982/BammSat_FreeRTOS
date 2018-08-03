@@ -41,7 +41,7 @@
 
 /* FreeRTOS kernel includes. */
 #include "FreeRTOS.h"
-#include "task.h"p
+#include "task.h"
 #include "queue.h"
 #include "timers.h"
 
@@ -330,15 +330,14 @@ void init_hardware()
 	CLOCK_AttachClk(BOARD_DEBUG_UART_CLK_ATTACH);
 	CLOCK_AttachClk(kFRO12M_to_FLEXCOMM4);
 	CLOCK_AttachClk(kFRO12M_to_FLEXCOMM8);
-	CLOCK_AttachClk(kFRO12M_to_FLEXCOMM7);
+	CLOCK_AttachClk(kFRO12M_to_FLEXCOMM3);
 	BOARD_InitPins();
 	BOARD_BootClockFROHF96M();
 	BOARD_InitDebugConsole();
 	BOARD_InitSDRAM();
 	RESET_PeripheralReset(kFC4_RST_SHIFT_RSTn);
-	RESET_PeripheralReset(kFC7_RST_SHIFT_RSTn);
+	RESET_PeripheralReset(kFC3_RST_SHIFT_RSTn);
 	RESET_PeripheralReset(kFC8_RST_SHIFT_RSTn);
-
 }
 
 /*!
@@ -528,7 +527,11 @@ void process_mission_data()
 		default:
 			break;
 	}
+}
 
+uint8_t identify_packet_subsystem(data_packet* packet)
+{
+		return packet->subsystem_id;
 }
 
 /* FreeRTOS tasks */
@@ -537,7 +540,6 @@ static void vMasterLoop(void *pvParameters)
 	uint8_t mode=1;
 	uint8_t command;
 	bammsat_state_vector.eps_packet_count = 0;
-	data_packet comms_packet;
 	float voltage_threshold = 5.0;
 
 	//uint8_t next_mode;
@@ -633,6 +635,8 @@ static void uart_task1(void *pvParameters)
     int error;
     size_t n;
     BaseType_t xStatus;
+    data_packet comms_packet;
+    uint8_t subsystem_id;
     usart_config1.srcclk = BOARD_DEBUG_UART_CLK_FREQ;
     usart_config1.base = DEMO_USART;
 
@@ -642,7 +646,6 @@ static void uart_task1(void *pvParameters)
     {
         vTaskSuspend(NULL);
     }
-
     /* Receive user input and send it back to terminal. */
     do
     {
@@ -666,9 +669,30 @@ static void uart_task1(void *pvParameters)
         		 * this must be an error as the queue should never contain more than one item! */
         	       PRINTF( "Could not send to the queue.\r\n" );
         	}
+        }
+        subsystem_id = identify_packet_subsystem((data_packet*)recv_buffer1);
+        if (subsystem_id == COM)
+        {
+        	//now send the outstanding data
+            xStatus = xQueueReceive( comms_queue, &comms_packet, 0 );
+            if( xStatus == pdPASS )
+            {
+            	/* Data was successfully received from the queue, print out the received values */
+                PRINTF( "Send the packet to the COMMS subsystem!\r\n" );
+                USART_RTOS_Send(&handle1, (uint8_t *) &comms_packet,20);
+            }
+            else
+            {
+            	/* Data was not received from the queue even after waiting for 100ms.
+                 * This must be an error as the sending tasks are free running and will be
+                 * continuously writing to the queue. */
+                PRINTF( "Could not receive from the comms queue.\r\n" );
+             }
+        }
+        else
+        {
         	//read the outbound queue from here
         	USART_RTOS_Send(&handle1, (uint8_t *)to_send1, strlen(to_send1));
-
         }
     } while (kStatus_Success == error);
     USART_RTOS_Deinit(&handle1);
@@ -681,7 +705,7 @@ static void uart_task2(void *pvParameters)
     size_t n;
     BaseType_t xStatus;
 	data_packet comms_packet;
-
+	uint8_t subsystem_id;
     usart_config2.srcclk = CLOCK_GetFreq(kCLOCK_Flexcomm4);
     usart_config2.base = DEMO_USART2;
 
@@ -717,23 +741,30 @@ static void uart_task2(void *pvParameters)
         		PRINTF( "Could not send to the queue.\r\n" );
         	}
         }
-        //now send the outstanding data
-        xStatus = xQueueReceive( comms_queue, &comms_packet, 0 );
-        if( xStatus == pdPASS )
+        subsystem_id = identify_packet_subsystem((data_packet*)recv_buffer2);
+        if (subsystem_id == COM)
         {
-        	/* Data was successfully received from the queue, print out the received values */
-        	PRINTF( "Send the packet to the COMMS subsystem!\r\n" );
-        	USART_RTOS_Send(&handle2, (uint8_t *) &comms_packet,20);
-        }
-        else
-        {
+        	//now send the outstanding data from comms queue
+        	xStatus = xQueueReceive( comms_queue, &comms_packet, 0 );
+        	if( xStatus == pdPASS )
+        	{
+        		/* Data was successfully received from the queue, print out the received values */
+        		PRINTF( "Send the packet to the COMMS subsystem!\r\n" );
+        		USART_RTOS_Send(&handle2, (uint8_t *) &comms_packet,20);
+        	}
+        	else
+        	{
         		/* Data was not received from the queue even after waiting for 100ms.
         		* This must be an error as the sending tasks are free running and will be
         		* continuously writing to the queue. */
-        		USART_RTOS_Send(&handle2, (uint8_t *)to_send2, strlen(to_send2));
         		PRINTF( "Could not receive from the comms queue.\r\n" );
+        	}
         }
-
+        else
+        {
+        	//read the outbound queue from here
+        	USART_RTOS_Send(&handle2, (uint8_t *)to_send2, strlen(to_send2));
+        }
     } while (kStatus_Success == error);
     USART_RTOS_Deinit(&handle2);
     vTaskSuspend(NULL);
@@ -747,6 +778,8 @@ static void uart_task3(void *pvParameters)
     int error;
     size_t n;
     BaseType_t xStatus;
+    data_packet comms_packet;
+    uint8_t subsystem_id;
     usart_config3.srcclk = CLOCK_GetFreq(kCLOCK_Flexcomm8);
     usart_config3.base = DEMO_USART3;
 
@@ -780,9 +813,31 @@ static void uart_task3(void *pvParameters)
         		 * this must be an error as the queue should never contain more than one item! */
         	       PRINTF( "Could not send to the queue.\r\n" );
         	}
-        	//read the outbound queue from here
-        	USART_RTOS_Send(&handle3, (uint8_t *)to_send3, strlen(to_send3));
         }
+        subsystem_id = identify_packet_subsystem((data_packet*)recv_buffer3);
+        if (subsystem_id == COM)
+        {
+        	//now send the outstanding data from comms queue
+            xStatus = xQueueReceive( comms_queue, &comms_packet, 0 );
+            if( xStatus == pdPASS )
+            {
+            	/* Data was successfully received from the queue, print out the received values */
+                PRINTF( "Send the packet to the COMMS subsystem!\r\n" );
+                USART_RTOS_Send(&handle3, (uint8_t *) &comms_packet,20);
+             }
+             else
+             {
+            	 /* Data was not received from the queue even after waiting for 100ms.
+                 * This must be an error as the sending tasks are free running and will be
+                 * continuously writing to the queue. */
+                PRINTF( "Could not receive from the comms queue.\r\n" );
+              }
+         }
+         else
+         {
+        	 //read the outbound queue from here
+             USART_RTOS_Send(&handle3, (uint8_t *)to_send3, strlen(to_send3));
+         }
     } while (kStatus_Success == error);
     USART_RTOS_Deinit(&handle3);
     vTaskSuspend(NULL);
@@ -793,6 +848,8 @@ static void uart_task4(void *pvParameters)
     int error;
     size_t n;
     BaseType_t xStatus;
+    data_packet comms_packet;
+    uint8_t subsystem_id;
     usart_config4.srcclk = CLOCK_GetFreq(kCLOCK_Flexcomm3);
     usart_config4.base = DEMO_USART4;
     NVIC_SetPriority(DEMO_USART_IRQn4, USART_NVIC_PRIO4);
@@ -825,9 +882,31 @@ static void uart_task4(void *pvParameters)
         		 * this must be an error as the queue should never contain more than one item! */
         	       PRINTF( "Could not send to the queue.\r\n" );
         	}
-        	//read the outbound queue from here
-        	USART_RTOS_Send(&handle4, (uint8_t *)to_send4, strlen(to_send4));
-        }
+         }
+        subsystem_id = identify_packet_subsystem((data_packet*)recv_buffer4);
+        if (subsystem_id == COM)
+        {
+        	//now send the outstanding data from comms queue
+            xStatus = xQueueReceive( comms_queue, &comms_packet, 0 );
+            if( xStatus == pdPASS )
+            {
+            	/* Data was successfully received from the queue, print out the received values */
+                PRINTF( "Send the packet to the COMMS subsystem!\r\n" );
+                USART_RTOS_Send(&handle4, (uint8_t *) &comms_packet,20);
+            }
+            else
+            {
+            	/* Data was not received from the queue even after waiting for 100ms.
+                 * This must be an error as the sending tasks are free running and will be
+                 * continuously writing to the queue. */
+                PRINTF( "Could not receive from the comms queue.\r\n" );
+             }
+         }
+         else
+         {
+               //read the outbound queue from here
+               USART_RTOS_Send(&handle4, (uint8_t *)to_send4, strlen(to_send4));
+         }
     } while (kStatus_Success == error);
     USART_RTOS_Deinit(&handle4);
     vTaskSuspend(NULL);
