@@ -41,7 +41,7 @@
 
 /* FreeRTOS kernel includes. */
 #include "FreeRTOS.h"
-#include "task.h"
+#include "task.h"p
 #include "queue.h"
 #include "timers.h"
 
@@ -63,14 +63,19 @@
 #define DEMO_USART USART0
 #define DEMO_USART2 USART4
 #define DEMO_USART3 USART8
+#define DEMO_USART4 USART3
 
 #define DEMO_USART_IRQHandler FLEXCOMM0_IRQHandler
 #define DEMO_USART_IRQHandler2 FLEXCOMM4_IRQHandler
 #define DEMO_USART_IRQHandler3 FLEXCOMM8_IRQHandler
+#define DEMO_USART_IRQHandler4 FLEXCOMM3_IRQHandler
+
 
 #define DEMO_USART_IRQn FLEXCOMM0_IRQn
 #define DEMO_USART_IRQn2 FLEXCOMM4_IRQn
 #define DEMO_USART_IRQn3 FLEXCOMM8_IRQn
+#define DEMO_USART_IRQn4 FLEXCOMM3_IRQn
+
 
 /* SDRAM values */
 #define SDRAM_BASE_ADDR 0xa0000000
@@ -83,6 +88,7 @@
 #define USART_NVIC_PRIO 5
 #define USART_NVIC_PRIO2 5
 #define USART_NVIC_PRIO3 5
+#define USART_NVIC_PRIO4 5
 
 /*******************************************************************************
  * State of the satellite
@@ -92,6 +98,11 @@
 #define SCIENCE_MODE 3
 #define DOWNLINK_MODE 4
 #define UPDATE_MODE 5
+/*******************************************************************************
+ * State of the satellite
+ ******************************************************************************/
+#define DO_NOTHING 0
+#define GOTO_SCIENCE_MODE 1
 /*******************************************************************************
  * Subsystem definitions
  ******************************************************************************/
@@ -115,6 +126,7 @@ struct {
 	float adc_vector[4];
 	uint32_t eps_packet_count;
 	uint8_t command_queue[16];
+	uint8_t mission_data[16];
 } bammsat_state_vector;
 
 /*******************************************************************************
@@ -123,6 +135,7 @@ struct {
 static void uart_task1(void *pvParameters);
 static void uart_task2(void *pvParameters);
 static void uart_task3(void *pvParameters);
+static void uart_task4(void *pvParameters);
 
 static void vReceiverTask( void *pvParameters);
 static void vMasterLoop(void *pvParameters);
@@ -132,6 +145,7 @@ static void vMasterLoop(void *pvParameters);
 const char *to_send1 = "Replying on USART:FLEXCOMM0\r\n";
 const char *to_send2 = "Replying on USART:FLEXCOMM4\r\n";
 const char *to_send3 = "Replying on USART:FLEXCOMM8\r\n";
+const char *to_send4 = "Replying on USART:FLEXCOMM3\r\n";
 
 const char *send_buffer_overrun = "\r\nRing buffer overrun!\r\n";
 uint8_t background_buffer1[40];
@@ -143,6 +157,9 @@ uint8_t recv_buffer2[20];
 uint8_t background_buffer3[40];
 uint8_t recv_buffer3[20];
 
+uint8_t background_buffer4[40];
+uint8_t recv_buffer4[20];
+
 usart_rtos_handle_t handle1;
 struct _usart_handle t_handle1;
 
@@ -151,6 +168,9 @@ struct _usart_handle t_handle2;
 
 usart_rtos_handle_t handle3;
 struct _usart_handle t_handle3;
+
+usart_rtos_handle_t handle4;
+struct _usart_handle t_handle4;
 
 struct rtos_usart_config usart_config1 = {
     .baudrate = 115200,
@@ -174,6 +194,14 @@ struct rtos_usart_config usart_config3 = {
     .stopbits = kUSART_OneStopBit,
     .buffer = background_buffer3,
     .buffer_size = sizeof(background_buffer3),
+};
+
+struct rtos_usart_config usart_config4 = {
+    .baudrate = 115200,
+    .parity = kUSART_ParityDisabled,
+    .stopbits = kUSART_OneStopBit,
+    .buffer = background_buffer4,
+    .buffer_size = sizeof(background_buffer4),
 };
 
 typedef struct {
@@ -302,12 +330,15 @@ void init_hardware()
 	CLOCK_AttachClk(BOARD_DEBUG_UART_CLK_ATTACH);
 	CLOCK_AttachClk(kFRO12M_to_FLEXCOMM4);
 	CLOCK_AttachClk(kFRO12M_to_FLEXCOMM8);
+	CLOCK_AttachClk(kFRO12M_to_FLEXCOMM7);
 	BOARD_InitPins();
 	BOARD_BootClockFROHF96M();
 	BOARD_InitDebugConsole();
 	BOARD_InitSDRAM();
 	RESET_PeripheralReset(kFC4_RST_SHIFT_RSTn);
+	RESET_PeripheralReset(kFC7_RST_SHIFT_RSTn);
 	RESET_PeripheralReset(kFC8_RST_SHIFT_RSTn);
+
 }
 
 /*!
@@ -344,6 +375,13 @@ int main(void)
     	   ;
     }
 
+    if (xTaskCreate(uart_task4, "Uart_task4", configMINIMAL_STACK_SIZE + 100, NULL, uart_task_PRIORITY, NULL) != pdPASS)
+    {
+    	PRINTF("UART 4 Task creation failed!.\r\n");
+        while (1)
+        	;
+    }
+
     //create queue reader task
     if (xTaskCreate(vReceiverTask, "QueueReader", configMINIMAL_STACK_SIZE + 100, NULL, uart_task_PRIORITY, NULL) != pdPASS)
     {
@@ -358,7 +396,7 @@ int main(void)
     	PRINTF("Master Loop Task creation failed!.\r\n");
         while (1)
               ;
-     }
+    }
 
     /* start task scheduler */
     vTaskStartScheduler();
@@ -415,6 +453,19 @@ int main(void)
 					break;
 			}
 			break;
+		case PLD:
+			PRINTF("Subsystem: PLD\r\n");
+			PRINTF("Packet type: %u\r\n",packet.type);
+			switch (packet.type)
+			{
+				case 1:
+					for (i=0;i<16;i++)
+						bammsat_state_vector.mission_data[i] = packet.command[i];
+					break;
+				default:
+					break;
+			}
+			break;
 		default:
 			break;
 	}
@@ -430,7 +481,10 @@ int main(void)
 		 bammsat_state_vector.sensors[i]=0.0;
 	 }
 	 for (i=0;i<16;i++)
+	 {
 		 bammsat_state_vector.command_queue[i] = 0;
+	 	 bammsat_state_vector.mission_data[i] = 0;
+	 }
  }
 
 void send_comms_packet(uint8_t p_subsystem, uint8_t p_type, uint8_t p_priority, uint8_t* message)
@@ -449,22 +503,39 @@ void send_comms_packet(uint8_t p_subsystem, uint8_t p_type, uint8_t p_priority, 
 	}
 }
 
-void process_command_queue()
+uint8_t process_command_queue()
 {
+	uint8_t command;
 	switch(bammsat_state_vector.command_queue[0])
 	{
 		case 1:
-			PRINTF ("Received COM command A\r\n");
+			PRINTF ("Received COM command with first value=1\r\n");
+			command = GOTO_SCIENCE_MODE;
 			break;
 		default:
 			break;
 	}
+	return command;
+}
+
+void process_mission_data()
+{
+	switch(bammsat_state_vector.mission_data[0])
+	{
+		case 1:
+			PRINTF ("Received Payload packet with first value=1\r\n");
+			break;
+		default:
+			break;
+	}
+
 }
 
 /* FreeRTOS tasks */
 static void vMasterLoop(void *pvParameters)
 {
 	uint8_t mode=1;
+	uint8_t command;
 	bammsat_state_vector.eps_packet_count = 0;
 	data_packet comms_packet;
 	float voltage_threshold = 5.0;
@@ -490,14 +561,19 @@ static void vMasterLoop(void *pvParameters)
 				//decide if I want to go into next mode or not
 				break;
 			case NOMINAL_MODE:
+				PRINTF("I am in the nominal mode!\r\n");
 				send_comms_packet(OBC, 1, PRIORITY_LOW, (uint8_t*)"OBC mode:nominal");
 				//parse command queue
-				process_command_queue();
-				PRINTF("I am in the nominal mode!\r\n");
+				//decide what to do next
+				command = process_command_queue();
+				//pre-conditions must match too
+				if (command == GOTO_SCIENCE_MODE)
+					mode = SCIENCE_MODE;
 				break;
 			case SCIENCE_MODE:
-				send_comms_packet(OBC, 1, PRIORITY_LOW, (uint8_t*)"OBC mode:science");
 				PRINTF("I am in the science mode!\r\n");
+				send_comms_packet(OBC, 1, PRIORITY_LOW, (uint8_t*)"OBC mode:science");
+				process_mission_data();
 				break;
 			case DOWNLINK_MODE:
 				send_comms_packet(OBC, 1, PRIORITY_LOW, (uint8_t*)"OBC mode:dwnlink");
@@ -551,8 +627,6 @@ static void vReceiverTask( void *pvParameters )
 		}
 	}
 }
-
-
 
 static void uart_task1(void *pvParameters)
 {
@@ -711,5 +785,50 @@ static void uart_task3(void *pvParameters)
         }
     } while (kStatus_Success == error);
     USART_RTOS_Deinit(&handle3);
+    vTaskSuspend(NULL);
+}
+
+static void uart_task4(void *pvParameters)
+{
+    int error;
+    size_t n;
+    BaseType_t xStatus;
+    usart_config4.srcclk = CLOCK_GetFreq(kCLOCK_Flexcomm3);
+    usart_config4.base = DEMO_USART4;
+    NVIC_SetPriority(DEMO_USART_IRQn4, USART_NVIC_PRIO4);
+
+    if (0 > USART_RTOS_Init(&handle4, &t_handle4, &usart_config4))
+    {
+        vTaskSuspend(NULL);
+    }
+
+    /* Receive user input and send it back to terminal. */
+    do
+    {
+        error = USART_RTOS_Receive(&handle4, recv_buffer4, sizeof(recv_buffer4), &n);
+        if (error == kStatus_USART_RxRingBufferOverrun)
+        {
+            /* Notify about hardware buffer overrun */
+            if (kStatus_Success !=
+                USART_RTOS_Send(&handle4, (uint8_t *)send_buffer_overrun, strlen(send_buffer_overrun)))
+            {
+                vTaskSuspend(NULL);
+            }
+        }
+        if (n > 0)
+        {
+            /* send back the received data */
+        	xStatus = xQueueSendToBack( data_queue, &recv_buffer4, 0 );
+        	if (xStatus != pdPASS )
+        	{
+        		/* The send operation could not complete because the queue was full -
+        		 * this must be an error as the queue should never contain more than one item! */
+        	       PRINTF( "Could not send to the queue.\r\n" );
+        	}
+        	//read the outbound queue from here
+        	USART_RTOS_Send(&handle4, (uint8_t *)to_send4, strlen(to_send4));
+        }
+    } while (kStatus_Success == error);
+    USART_RTOS_Deinit(&handle4);
     vTaskSuspend(NULL);
 }

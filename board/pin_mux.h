@@ -112,6 +112,10 @@ void BOARD_InitBootPins(void);
 #define PIO18_FUNC_ALT6 0x06u         /*!<@brief Selects pin function.: Alternative connection 6. */
 #define PIO19_DIGIMODE_DIGITAL 0x01u  /*!<@brief Select Analog/Digital mode.: Digital mode. */
 #define PIO19_FUNC_ALT6 0x06u         /*!<@brief Selects pin function.: Alternative connection 6. */
+#define PIO218_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO218_FUNC_ALT2 0x02u        /*!<@brief Selects pin function.: Alternative connection 2. */
+#define PIO219_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO219_FUNC_ALT2 0x02u        /*!<@brief Selects pin function.: Alternative connection 2. */
 #define PIO325_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
 #define PIO325_FUNC_ALT6 0x06u        /*!<@brief Selects pin function.: Alternative connection 6. */
 #define PIO326_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
@@ -260,6 +264,14 @@ void BOARD_InitBootPins(void);
 /* @} */
 
 /*! @name EMC_WEN (coord L4), U28[F9]/P0_15-EMC_WEn
+  @{ */
+/* @} */
+
+/*! @name FC3_RXD_SDA_MOSI (coord N10), U10[29]/J9[16]/P2_18-FC7_I2S_RX_SCK
+  @{ */
+/* @} */
+
+/*! @name FC3_TXD_SCL_MISO (coord P12), U10[31]/J9[20]/P2_19-FC7_I2S_RX_DAT
   @{ */
 /* @} */
 
