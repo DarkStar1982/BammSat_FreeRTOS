@@ -123,7 +123,10 @@
 struct {
 	float voltages[4];
 	float sensors[4];
-	float adc_vector[4];
+	float adc_vector_a[3];
+	float adc_vector_g[3];
+	float adc_vector_m[3];
+	float adc_vector_i[3];
 	uint32_t eps_packet_count;
 	uint8_t command_queue[16];
 	uint8_t mission_data[16];
@@ -465,6 +468,30 @@ int main(void)
 					break;
 			}
 			break;
+		case ADC:
+			PRINTF("Subsystem: ADC\r\n");
+			PRINTF("Packet type: %u\r\n",packet.type);
+			PRINTF("ADC packet data: \r\n");
+			for (i=0;i<3;i++) PRINTF("%3.2f ",packet.data[i]);
+			PRINTF("\r\n");
+			switch (packet.type)
+			{
+				case 1:
+					for (i=0;i<3;i++) bammsat_state_vector.adc_vector_a[i] = packet.data[i];
+					break;
+				case 2:
+					for (i=0;i<3;i++) bammsat_state_vector.adc_vector_g[i] = packet.data[i];
+					break;
+				case 3:
+					for (i=0;i<3;i++) bammsat_state_vector.adc_vector_m[i] = packet.data[i];
+					break;
+				case 4:
+					for (i=0;i<3;i++) bammsat_state_vector.adc_vector_i[i] = packet.data[i];
+					break;
+				default:
+					break;
+			}
+
 		default:
 			break;
 	}
@@ -476,7 +503,7 @@ int main(void)
 	 for (i=0;i<4;i++)
 	 {
 		 bammsat_state_vector.voltages[i]=0.0;
-		 bammsat_state_vector.adc_vector[i]=0.0;
+		// bammsat_state_vector.adc_vector[i]=0.0;
 		 bammsat_state_vector.sensors[i]=0.0;
 	 }
 	 for (i=0;i<16;i++)
