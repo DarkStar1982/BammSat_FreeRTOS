@@ -39,6 +39,11 @@
 // TODO: self-reflash from SD Card data
 // TODO: power management functionality
 
+/* Standard library includes */
+#include <stdbool.h>
+#include <stdio.h>
+#include <string.h>
+
 /* FreeRTOS kernel includes. */
 #include "FreeRTOS.h"
 #include "task.h"
@@ -50,13 +55,21 @@
 #include "fsl_debug_console.h"
 #include "fsl_emc.h"
 #include "fsl_flexcomm.h"
-#include "board.h"
-
+#include "fsl_sd.h"
 #include "fsl_usart_freertos.h"
 #include "fsl_usart.h"
+#include "fsl_iocon.h"
 
+/* FatFS definitions */
+#include "ff.h"
+#include "diskio.h"
+#include "fsl_sd_disk.h"
+
+/* Board includes */
+#include "board.h"
 #include "pin_mux.h"
-#include <stdbool.h>
+
+
 /*******************************************************************************
  * Definitions
  ******************************************************************************/
@@ -76,6 +89,8 @@
 #define DEMO_USART_IRQn3 FLEXCOMM8_IRQn
 #define DEMO_USART_IRQn4 FLEXCOMM3_IRQn
 
+/* buffer size (in byte) for read/write operations */
+#define BUFFER_SIZE (100U)
 
 /* SDRAM values */
 #define SDRAM_BASE_ADDR 0xa0000000
@@ -133,8 +148,9 @@ struct {
 } bammsat_state_vector;
 
 /*******************************************************************************
- * Task Prototypes
+ * Function Prototypes
  ******************************************************************************/
+static status_t sdcardWaitCardInsert(void);
 static void uart_task1(void *pvParameters);
 static void uart_task2(void *pvParameters);
 static void uart_task3(void *pvParameters);
@@ -142,8 +158,44 @@ static void uart_task4(void *pvParameters);
 
 static void vReceiverTask( void *pvParameters);
 static void vMasterLoop(void *pvParameters);
+int test_sd_card();
+
 /*******************************************************************************
- * Code
+ * SD Card definitions
+ ******************************************************************************/
+static FATFS g_fileSystem; /* File system object */
+static FIL g_fileObject;   /* File object */
+
+/* @brief decription about the read/write buffer
+* The size of the read/write buffer should be a multiple of 512, since SDHC/SDXC card uses 512-byte fixed
+* block length and this driver example is enabled with a SDHC/SDXC card.If you are using a SDSC card, you
+* can define the block length by yourself if the card supports partial access.
+* The address of the read/write buffer should align to the specific DMA data buffer address align value if
+* DMA transfer is used, otherwise the buffer address is not important.
+* At the same time buffer address/size should be aligned to the cache line size if cache is supported.
+*/
+SDK_ALIGN(uint8_t g_bufferWrite[SDK_SIZEALIGN(BUFFER_SIZE, SDMMC_DATA_BUFFER_ALIGN_CACHE)],
+          MAX(SDMMC_DATA_BUFFER_ALIGN_CACHE, SDMMCHOST_DMA_BUFFER_ADDR_ALIGN));
+SDK_ALIGN(uint8_t g_bufferRead[SDK_SIZEALIGN(BUFFER_SIZE, SDMMC_DATA_BUFFER_ALIGN_CACHE)],
+          MAX(SDMMC_DATA_BUFFER_ALIGN_CACHE, SDMMCHOST_DMA_BUFFER_ADDR_ALIGN));
+/*! @brief SDMMC host detect card configuration */
+static const sdmmchost_detect_card_t s_sdCardDetect = {
+#ifndef BOARD_SD_DETECT_TYPE
+    .cdType = kSDMMCHOST_DetectCardByGpioCD,
+#else
+    .cdType = BOARD_SD_DETECT_TYPE,
+#endif
+    .cdTimeOut_ms = (~0U),
+};
+
+/*! @brief SDMMC card power control configuration */
+#if defined DEMO_SDCARD_POWER_CTRL_FUNCTION_EXIST
+static const sdmmchost_pwr_card_t s_sdCardPwrCtrl = {
+    .powerOn = BOARD_PowerOnSDCARD, .powerOnDelay_ms = 500U, .powerOff = BOARD_PowerOffSDCARD, .powerOffDelay_ms = 0U,
+};
+#endif
+/*******************************************************************************
+ * UART definitions
  ******************************************************************************/
 const char *to_send1 = "Replying on USART:FLEXCOMM0\r\n";
 const char *to_send2 = "Replying on USART:FLEXCOMM4\r\n";
@@ -218,9 +270,20 @@ typedef struct {
 	};
 } data_packet;
 
-QueueHandle_t data_queue; //common queue - receiving commands from subsystems
-QueueHandle_t comms_queue; //queue for packets sent to communication subsystem
 
+/*******************************************************************************
+ * Command queues definitions
+ *  data_queue: receiving commands from subsystems
+ *	comms_queue: for packets sent to communication subsystem
+ ******************************************************************************/
+QueueHandle_t data_queue;
+QueueHandle_t comms_queue;
+
+/*******************************************************************************
+ * Code
+ ******************************************************************************/
+
+/* Checks the SDRAM functionality */
 status_t SDRAM_DataBusCheck(volatile uint32_t *address)
 {
     uint32_t data = 0;
@@ -321,21 +384,214 @@ void sdram_check()
 	PRINTF("\r\n SDRAM Example End.\r\n");
 }
 
+int test_sd_card()
+{
+	FRESULT error;
+	DIR directory; /* Directory object */
+	FILINFO fileInformation;
+	UINT bytesWritten;
+	UINT bytesRead;
+	const TCHAR driverNumberBuffer[3U] = {SDDISK + '0', ':', '/'};
+	volatile bool failedFlag = false;
+	char ch = '0';
+	BYTE work[FF_MAX_SS];
+
+	PRINTF("\r\nFATFS example to demonstrate how to use FATFS with SD card.\r\n");
+
+	PRINTF("\r\nPlease insert a card into board.\r\n");
+
+	if (sdcardWaitCardInsert() != kStatus_Success)
+	{
+	        return -1;
+	}
+
+	if (f_mount(&g_fileSystem, driverNumberBuffer, 0U))
+	{
+	        PRINTF("Mount volume failed.\r\n");
+	        return -1;
+	}
+
+	#if (FF_FS_RPATH >= 2U)
+	    error = f_chdrive((char const *)&driverNumberBuffer[0U]);
+	    if (error)
+	    {
+	        PRINTF("Change drive failed.\r\n");
+	        return -1;
+	    }
+	#endif
+
+	#if FF_USE_MKFS
+	    PRINTF("\r\nMake file system......The time may be long if the card capacity is big.\r\n");
+	    if (f_mkfs(driverNumberBuffer, FM_ANY, 0U, work, sizeof work))
+	    {
+	        PRINTF("Make file system failed.\r\n");
+	        return -1;
+	    }
+	#endif /* FF_USE_MKFS */
+
+	PRINTF("\r\nCreate directory......\r\n");
+	error = f_mkdir(_T("/dir_1"));
+    if (error)
+	{
+    	if (error == FR_EXIST)
+	     {
+	            PRINTF("Directory exists.\r\n");
+	        }
+	        else
+	        {
+	            PRINTF("Make directory failed.\r\n");
+	            return -1;
+	        }
+	}
+
+	 PRINTF("\r\nCreate a file in that directory......\r\n");
+	    error = f_open(&g_fileObject, _T("/dir_1/f_1.dat"), (FA_WRITE | FA_READ | FA_CREATE_ALWAYS));
+	    if (error)
+	    {
+	        if (error == FR_EXIST)
+	        {
+	            PRINTF("File exists.\r\n");
+	        }
+	        else
+	        {
+	            PRINTF("Open file failed.\r\n");
+	            return -1;
+	        }
+	    }
+
+	    PRINTF("\r\nCreate a directory in that directory......\r\n");
+	    error = f_mkdir(_T("/dir_1/dir_2"));
+	    if (error)
+	    {
+	        if (error == FR_EXIST)
+	        {
+	            PRINTF("Directory exists.\r\n");
+	        }
+	        else
+	        {
+	            PRINTF("Directory creation failed.\r\n");
+	            return -1;
+	        }
+	    }
+
+	    PRINTF("\r\nList the file in that directory......\r\n");
+	    if (f_opendir(&directory, "/dir_1"))
+	    {
+	        PRINTF("Open directory failed.\r\n");
+	        return -1;
+	    }
+
+	    for (;;)
+	    {
+	        error = f_readdir(&directory, &fileInformation);
+
+	        /* To the end. */
+	        if ((error != FR_OK) || (fileInformation.fname[0U] == 0U))
+	        {
+	            break;
+	        }
+	        if (fileInformation.fname[0] == '.')
+	        {
+	            continue;
+	        }
+	        if (fileInformation.fattrib & AM_DIR)
+	        {
+	            PRINTF("Directory file : %s.\r\n", fileInformation.fname);
+	        }
+	        else
+	        {
+	            PRINTF("General file : %s.\r\n", fileInformation.fname);
+	        }
+	    }
+
+	    memset(g_bufferWrite, 'a', sizeof(g_bufferWrite));
+	    g_bufferWrite[BUFFER_SIZE - 2U] = '\r';
+	    g_bufferWrite[BUFFER_SIZE - 1U] = '\n';
+
+	    PRINTF("\r\nWrite/read file until encounters error......\r\n");
+	    while (true)
+	    {
+	        if (failedFlag || (ch == 'q'))
+	        {
+	            break;
+	        }
+
+	        PRINTF("\r\nWrite to above created file.\r\n");
+	        error = f_write(&g_fileObject, g_bufferWrite, sizeof(g_bufferWrite), &bytesWritten);
+	        if ((error) || (bytesWritten != sizeof(g_bufferWrite)))
+	        {
+	            PRINTF("Write file failed. \r\n");
+	            failedFlag = true;
+	            continue;
+	        }
+
+	        /* Move the file pointer */
+	        if (f_lseek(&g_fileObject, 0U))
+	        {
+	            PRINTF("Set file pointer position failed. \r\n");
+	            failedFlag = true;
+	            continue;
+	        }
+
+	        PRINTF("Read from above created file.\r\n");
+	        memset(g_bufferRead, 0U, sizeof(g_bufferRead));
+	        error = f_read(&g_fileObject, g_bufferRead, sizeof(g_bufferRead), &bytesRead);
+	        if ((error) || (bytesRead != sizeof(g_bufferRead)))
+	        {
+	            PRINTF("Read file failed. \r\n");
+	            failedFlag = true;
+	            continue;
+	        }
+
+	        PRINTF("Compare the read/write content......\r\n");
+	        if (memcmp(g_bufferWrite, g_bufferRead, sizeof(g_bufferWrite)))
+	        {
+	            PRINTF("Compare read/write content isn't consistent.\r\n");
+	            failedFlag = true;
+	            continue;
+	        }
+	        PRINTF("The read/write content is consistent.\r\n");
+
+	        PRINTF("\r\nInput 'q' to quit read/write.\r\nInput other char to read/write file again.\r\n");
+	        ch = GETCHAR();
+	        PUTCHAR(ch);
+	    }
+	    PRINTF("\r\nThe example will not read/write file again.\r\n");
+
+	    if (f_close(&g_fileObject))
+	    {
+	        PRINTF("\r\nClose file failed.\r\n");
+	        return -1;
+	    }
+
+	    /*while (true)
+	    {
+	    } */
+	    return 0;
+}
+
+
 /* Init board hardware:
  * 	attach 12 MHz clock to FLEXCOMM0 (debug console)
  *	attach 12 MHz clock to FLEXCOMM4 (UART4)
  *	attach 12 MHz clock to FLEXCOMM8 (UART8)
- *  check SDRAM memory
+ *  init SDRAM memory
+ *  init SD Card hardware
  *  reset the FLEXCOMM interfaces
  */
 void init_hardware()
 {
+	CLOCK_EnableClock(kCLOCK_InputMux);
 	CLOCK_AttachClk(BOARD_DEBUG_UART_CLK_ATTACH);
 	CLOCK_AttachClk(kFRO12M_to_FLEXCOMM4);
 	CLOCK_AttachClk(kFRO12M_to_FLEXCOMM8);
 	CLOCK_AttachClk(kFRO12M_to_FLEXCOMM3);
+	CLOCK_AttachClk(BOARD_SDIF_CLK_ATTACH);
+	CLOCK_SetClkDiv(kCLOCK_DivSdioClk, 1U, true);
 	BOARD_InitPins();
 	BOARD_BootClockFROHF96M();
+	/* need call this function to clear the halt bit in clock divider register */
+	CLOCK_SetClkDiv(kCLOCK_DivSdioClk, (uint32_t)(SystemCoreClock / FSL_FEATURE_SDIF_MAX_SOURCE_CLOCK + 1U), true);
 	BOARD_InitDebugConsole();
 	BOARD_InitSDRAM();
 	RESET_PeripheralReset(kFC4_RST_SHIFT_RSTn);
@@ -350,7 +606,7 @@ int main(void)
 {
 	init_hardware();
 	sdram_check();
-
+	test_sd_card();
 	/* create inbound and outbound queues */
     data_queue = xQueueCreate(32, sizeof(recv_buffer1));
     comms_queue = xQueueCreate(32, sizeof(recv_buffer1));
@@ -616,6 +872,41 @@ static void vMasterLoop(void *pvParameters)
 		vTaskDelay( xDelay1000ms );
 	}
 }
+
+static status_t sdcardWaitCardInsert(void)
+{
+    /* Save host information. */
+    g_sd.host.base = SD_HOST_BASEADDR;
+    g_sd.host.sourceClock_Hz = SD_HOST_CLK_FREQ;
+    /* card detect type */
+    g_sd.usrParam.cd = &s_sdCardDetect;
+#if defined DEMO_SDCARD_POWER_CTRL_FUNCTION_EXIST
+    g_sd.usrParam.pwr = &s_sdCardPwrCtrl;
+#endif
+    /* SD host init function */
+    if (SD_HostInit(&g_sd) != kStatus_Success)
+    {
+        PRINTF("\r\nSD host init fail\r\n");
+        return kStatus_Fail;
+    }
+    /* power off card */
+    SD_PowerOffCard(g_sd.host.base, g_sd.usrParam.pwr);
+    /* wait card insert */
+    if (SD_WaitCardDetectStatus(SD_HOST_BASEADDR, &s_sdCardDetect, true) == kStatus_Success)
+    {
+        PRINTF("\r\nCard inserted.\r\n");
+        /* power on the card */
+        SD_PowerOnCard(g_sd.host.base, g_sd.usrParam.pwr);
+    }
+    else
+    {
+        PRINTF("\r\nCard detect fail.\r\n");
+        return kStatus_Fail;
+    }
+
+    return kStatus_Success;
+}
+
 
 /* queue read task */
 static void vReceiverTask( void *pvParameters )

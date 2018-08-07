@@ -112,10 +112,28 @@ void BOARD_InitBootPins(void);
 #define PIO18_FUNC_ALT6 0x06u         /*!<@brief Selects pin function.: Alternative connection 6. */
 #define PIO19_DIGIMODE_DIGITAL 0x01u  /*!<@brief Select Analog/Digital mode.: Digital mode. */
 #define PIO19_FUNC_ALT6 0x06u         /*!<@brief Selects pin function.: Alternative connection 6. */
+#define PIO210_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO210_FUNC_ALT2 0x02u        /*!<@brief Selects pin function.: Alternative connection 2. */
 #define PIO218_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
 #define PIO218_FUNC_ALT2 0x02u        /*!<@brief Selects pin function.: Alternative connection 2. */
 #define PIO219_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
 #define PIO219_FUNC_ALT2 0x02u        /*!<@brief Selects pin function.: Alternative connection 2. */
+#define PIO23_DIGIMODE_DIGITAL 0x01u  /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO23_FUNC_ALT2 0x02u         /*!<@brief Selects pin function.: Alternative connection 2. */
+#define PIO24_DIGIMODE_DIGITAL 0x01u  /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO24_FUNC_ALT2 0x02u         /*!<@brief Selects pin function.: Alternative connection 2. */
+#define PIO25_DIGIMODE_DIGITAL 0x01u  /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO25_FUNC_ALT2 0x02u         /*!<@brief Selects pin function.: Alternative connection 2. */
+#define PIO26_DIGIMODE_DIGITAL 0x01u  /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO26_FUNC_ALT2 0x02u         /*!<@brief Selects pin function.: Alternative connection 2. */
+#define PIO27_DIGIMODE_DIGITAL 0x01u  /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO27_FUNC_ALT2 0x02u         /*!<@brief Selects pin function.: Alternative connection 2. */
+#define PIO28_DIGIMODE_DIGITAL 0x01u  /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO28_FUNC_ALT2 0x02u         /*!<@brief Selects pin function.: Alternative connection 2. */
+#define PIO29_DIGIMODE_DIGITAL 0x01u  /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO29_FUNC_ALT2 0x02u         /*!<@brief Selects pin function.: Alternative connection 2. */
+#define PIO315_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
+#define PIO315_FUNC_ALT2 0x02u        /*!<@brief Selects pin function.: Alternative connection 2. */
 #define PIO325_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
 #define PIO325_FUNC_ALT6 0x06u        /*!<@brief Selects pin function.: Alternative connection 6. */
 #define PIO326_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
@@ -272,6 +290,42 @@ void BOARD_InitBootPins(void);
 /* @} */
 
 /*! @name FC3_TXD_SCL_MISO (coord P12), U10[31]/J9[20]/P2_19-FC7_I2S_RX_DAT
+  @{ */
+/* @} */
+
+/*! @name SD_CARD_DET_N (coord P1), RP1[2]/U9[7]/P2_10-SD_CDn
+  @{ */
+/* @} */
+
+/*! @name SD_CLK (coord B1), U9[3]/P2_3-SD_CLK
+  @{ */
+/* @} */
+
+/*! @name SD_CMD (coord D3), RP1[6]/U9[2]/P2_4-SD_CMD
+  @{ */
+/* @} */
+
+/*! @name SD_D(0) (coord F3), RP1[5]/U9[4]/P2_6-SD_D0
+  @{ */
+/* @} */
+
+/*! @name SD_D(1) (coord J2), RP1[4]/U9[5]/P2_7-SD_D1
+  @{ */
+/* @} */
+
+/*! @name SD_D(2) (coord F4), RP1[3]/U9[6]/P2_8-SD_D2
+  @{ */
+/* @} */
+
+/*! @name SD_D(3) (coord K2), RP1[7]/U9[1]/P2_9-SD_D3
+  @{ */
+/* @} */
+
+/*! @name SD_POW_EN (coord C1), Q3[1]/P2_5-SD_POW_EN
+  @{ */
+/* @} */
+
+/*! @name SD_WR_PRT (coord D2), RP1[1]/U9[8]/P3_15-SD_WPn
   @{ */
 /* @} */
 
