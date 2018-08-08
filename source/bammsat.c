@@ -56,22 +56,21 @@
 #include "fsl_emc.h"
 #include "fsl_flexcomm.h"
 #include "fsl_sd.h"
+#include "fsl_sd_disk.h"
 #include "fsl_usart_freertos.h"
 #include "fsl_usart.h"
 #include "fsl_iocon.h"
 
-/* FatFS definitions */
+/* FatFS and I/O definitions */
 #include "ff.h"
 #include "diskio.h"
-#include "fsl_sd_disk.h"
 
 /* Board includes */
 #include "board.h"
 #include "pin_mux.h"
 
-
 /*******************************************************************************
- * Definitions
+ * Constant definitions
  ******************************************************************************/
 #define DEMO_USART USART0
 #define DEMO_USART2 USART4
@@ -106,7 +105,7 @@
 #define USART_NVIC_PRIO4 5
 
 /*******************************************************************************
- * State of the satellite
+ * States of the satellite
  ******************************************************************************/
 #define SAFE_MODE 1
 #define NOMINAL_MODE 2
@@ -114,7 +113,7 @@
 #define DOWNLINK_MODE 4
 #define UPDATE_MODE 5
 /*******************************************************************************
- * State of the satellite
+ * State of the satellite mission payload
  ******************************************************************************/
 #define DO_NOTHING 0
 #define GOTO_SCIENCE_MODE 1
@@ -387,7 +386,7 @@ void sdram_check()
 int test_sd_card()
 {
 	FRESULT error;
-	DIR directory; /* Directory object */
+	DIR directory;
 	FILINFO fileInformation;
 	UINT bytesWritten;
 	UINT bytesRead;
@@ -427,7 +426,7 @@ int test_sd_card()
 	        PRINTF("Make file system failed.\r\n");
 	        return -1;
 	    }
-	#endif /* FF_USE_MKFS */
+	#endif
 
 	PRINTF("\r\nCreate directory......\r\n");
 	error = f_mkdir(_T("/dir_1"));
@@ -443,15 +442,14 @@ int test_sd_card()
 	            return -1;
 	        }
 	}
-
-	 PRINTF("\r\nCreate a file in that directory......\r\n");
-	    error = f_open(&g_fileObject, _T("/dir_1/f_1.dat"), (FA_WRITE | FA_READ | FA_CREATE_ALWAYS));
-	    if (error)
+	PRINTF("\r\nCreate a file in that directory......\r\n");
+	error = f_open(&g_fileObject, _T("/dir_1/f_1.dat"), (FA_WRITE | FA_READ | FA_CREATE_ALWAYS));
+	if (error)
+	{
+		if (error == FR_EXIST)
 	    {
-	        if (error == FR_EXIST)
-	        {
-	            PRINTF("File exists.\r\n");
-	        }
+	    	PRINTF("File exists.\r\n");
+	    }
 	        else
 	        {
 	            PRINTF("Open file failed.\r\n");
@@ -484,8 +482,6 @@ int test_sd_card()
 	    for (;;)
 	    {
 	        error = f_readdir(&directory, &fileInformation);
-
-	        /* To the end. */
 	        if ((error != FR_OK) || (fileInformation.fname[0U] == 0U))
 	        {
 	            break;
@@ -525,7 +521,6 @@ int test_sd_card()
 	            continue;
 	        }
 
-	        /* Move the file pointer */
 	        if (f_lseek(&g_fileObject, 0U))
 	        {
 	            PRINTF("Set file pointer position failed. \r\n");
@@ -564,9 +559,6 @@ int test_sd_card()
 	        return -1;
 	    }
 
-	    /*while (true)
-	    {
-	    } */
 	    return 0;
 }
 
@@ -606,7 +598,7 @@ int main(void)
 {
 	init_hardware();
 	sdram_check();
-	test_sd_card();
+	//test_sd_card();
 	/* create inbound and outbound queues */
     data_queue = xQueueCreate(32, sizeof(recv_buffer1));
     comms_queue = xQueueCreate(32, sizeof(recv_buffer1));

@@ -69,7 +69,7 @@ void SDMMCEVENT_InitTimer(void)
     SysTick_Config(CLOCK_GetFreq(kCLOCK_CoreSysClk) / 1000U);
 }
 
-void SysTick_Handler(void)
+void SysTick_Handler_SD(void) //need to fix this
 {
     g_eventTimeMilliseconds++;
 }

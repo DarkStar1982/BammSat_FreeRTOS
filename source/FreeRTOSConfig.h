@@ -146,6 +146,5 @@ See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
 standard names. */
 #define vPortSVCHandler SVC_Handler
 #define xPortPendSVHandler PendSV_Handler
-//#define xPortSysTickHandler SysTick_Handler -conflict with SD IO definition!
-
+#define xPortSysTickHandler SysTick_Handler //-conflict with SD IO definition!
 #endif /* FREERTOS_CONFIG_H */
