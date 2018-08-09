@@ -710,7 +710,11 @@ int main(void)
 			{
 				case 1:
 					for (i=0;i<16;i++)
+					{
 						bammsat_state_vector.mission_data[i] = packet.command[i];
+						PRINTF("%u ",packet.command[i]);
+					}
+					PRINTF("\r\n");
 					break;
 				default:
 					break;
@@ -972,6 +976,9 @@ static void uart_task1(void *pvParameters)
         if (n > 0)
         {
             /* send back the received data */
+        	//Arduino test
+        	//PRINTF((uint8_t*)recv_buffer1);
+        	//End Arduino test;
         	xStatus = xQueueSendToBack( data_queue, &recv_buffer1, 0 );
         	if (xStatus != pdPASS )
         	{
